@@ -1,0 +1,15 @@
+{
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://composer.typo3.org/"
+    }
+  ],
+  "name": "pco/typo3-base-docker",
+  "description": "TYPO3 CMS Base Distribution - Dockerized",
+  "license": "GPL-2.0+",
+  "require": {
+    "firebase/php-jwt": "^4.0",
+    "phpseclib/phpseclib": "^2.0"
+  }
+}
