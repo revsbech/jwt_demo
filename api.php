@@ -1,6 +1,8 @@
 <?php
 require_once('vendor/autoload.php');
-use Firebase\JWT\JWT;
+
+
+use Namshi\JOSE\SimpleJWS;
 use phpseclib\Crypt\RSA;
 use phpseclib\Math\BigInteger;
 
@@ -16,24 +18,25 @@ class ApiDemo {
             echo "No JSON Webtoken given";
             exit();
         }
+        $jws = SimpleJWS::load($jwtToken);
         try {
             //echo "Token: " . $jwtToken;
             $allKeys = $this->fetchPublicKeys();
-            $keyId = $this->getKeyIdFromJWT($jwtToken);
+            $keyId = $jws->getHeader()['kid'];
             if ($keyId !== false && is_array($allKeys) && key_exists($keyId, $allKeys)) {
                 $keyConf = $allKeys[$keyId];
                 $publicKey = $this->getPublicKeyFromExponentAndModulus($keyConf['e'], $keyConf['n']);
-                $decodedToekn = JWT::decode($jwtToken, $publicKey, array($keyConf['alg']));
-                print "<p>User identity: " . $decodedToekn->sub . '</p>';
-                print "<p>Roles: <ul>";
-                foreach($decodedToekn->amr as $provider) {
-                    print '<li>' . $provider . '</li>';
-                }
-                print '</ul></p>';
-                print '<p>Key expires' . date("d/m-Y H:m:i", $decodedToekn->exp) .'</p>';
+
+                //$decodedToken = JWT::decode($jwtToken, $publicKey, array($keyConf['alg']));
+
+
                 print '<pre>';
-                var_dump($decodedToekn);
+                //var_dump($jws);
                 print '</pre>';
+                if ($jws->isValid($publicKey, $keyConf['alg']) === false) {
+                    echo "Invalid or expired token.";
+                }
+                $this->printJWS($jws);
 
             }
         } catch (\Exception $e) {
@@ -83,11 +86,31 @@ class ApiDemo {
      */
     protected function getPublicKeyFromExponentAndModulus($exponent, $modulus) {
         $rsa = new RSA();
-        $modulus = new BigInteger(JWT::urlsafeB64Decode($modulus), 256);
-        $exponent = new BigInteger(JWT::urlsafeB64Decode($exponent), 256);
+        $modulus = new BigInteger(base64_decode($modulus), 256);
+        $exponent = new BigInteger(base64_decode($exponent), 256);
         $rsa->loadKey(array('n' => $modulus, 'e' => $exponent));
         $rsa->setPublicKey();
         return $rsa->getPublicKey();
+    }
+
+    /**
+     * @param $jws
+     */
+    protected function printJWS($jws)
+    {
+        $payload = $jws->getPayload();
+
+        print "<p>User identity: " . $payload['sub'] . '</p>';
+        print "<p>Issuer: " . $payload['iss'] . '</p>';
+        print "<p>Roles: <ul>";
+        foreach ($payload['amr'] as $provider) {
+            print '<li>' . $provider . '</li>';
+        }
+        print '</ul></p>';
+        print '<p>Key expires:' . date("d/m-Y H:m:i", $payload['exp']) . '</p>';
+        print '<pre>';
+        var_dump($payload);
+        print '</pre>';
     }
 }
 
